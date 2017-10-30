@@ -82,10 +82,28 @@ begin
 end;
 
 function GetNum: integer;
+var Value: integer;
 begin
+	Value := 0;
 	if not IsDigit(Look) then Expected('Integer');
-	GetNum := Ord(Look) - Ord('0');
-	GetChar;
+	while IsDigit(Look) do begin
+		Value := 10 * Value + Ord(Look) - Ord('0');
+		GetChar;
+	end;
+	GetNum := Value;
+end;
+
+function Expression: integer; Forward;
+
+function Factor: integer;
+begin
+	if Look = '(' then begin
+		Match('(');
+		Factor := Expression;
+		Match(')');
+	end
+	else
+		Factor := GetNum;
 end;
       
 procedure Emit(s: string);
@@ -118,22 +136,42 @@ begin
 		EmitLn('MOVE ' + Name + '(PC),D0')
 end;
 
+{ Parse and translate a math term }
+function Term: integer;
+var Value: integer;
+begin
+	Value := Factor;
+	while Look in ['*', '/'] do begin
+		case Look of
+			'*': begin
+				Match('*');
+				Value := Value * Factor;
+			end;
+			'/': begin
+				Match('/');
+				Value := Value div Factor;
+			end;
+		end;
+	end;
+	Term := Value;
+end;
+
 function Expression: integer;
 var Value: integer;
 begin
 	if IsAddop(Look) then
 		Value := 0
 	else
-		Value := GetNum;
+		Value := Term;
 	while IsAddop(Look) do begin
 		case Look of
 			'+': begin
 				Match('+');
-				Value := Value + GetNum;
+				Value := Value + Term;
 			end;
 			'-': begin
 				Match('-');
-				Value := Value - GetNum;
+				Value := Value - Term;
 			end;
 		end;
 	end;
