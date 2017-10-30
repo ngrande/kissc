@@ -2,9 +2,18 @@ program Cradle;
 
 const TAB = ^I;
 const CR = ^M;
-const MAX_STR_LEN = 8;
+const LF = ^J;
+{const MAX_STR_LEN = 8;}
 
 var Look: char;
+Table: Array['A'..'Z'] of integer;
+
+procedure InitTable;
+var i: char;
+begin
+	for i := 'A' to 'Z' do
+		Table[i] := 0;
+end;
 
 procedure Error(s: string);
 begin
@@ -30,7 +39,7 @@ end;
 
 function IsAlpha(c: char): boolean;
 begin
-	IsAlpha := upcase(c) in ['A'..'Z'];
+	IsAlpha := UpCase(c) in ['A'..'Z'];
 end;
 
 function IsDigit(c: char): boolean;
@@ -53,6 +62,15 @@ begin
 	Read(Look);
 end;
 
+procedure NewLine;
+begin
+	if Look = LF then begin
+		GetChar;
+		if Look = CR then
+			GetChar;
+	end;
+end;
+
 procedure SkipWhite;
 begin
 	while IsWhite(Look) do
@@ -68,16 +86,11 @@ begin
 	end;
 end;
 
-function GetName: string;
-var Token: string;
+function GetName: char;
 begin
-	Token := '';
-        if not IsAlpha(Look) then Expected('Name');
-	while IsAlNum(Look) do begin
-		Token := Token + UpCase(Look);
-		GetChar;
-	end;
-        GetName := Token;
+	if not IsAlpha(Look) then Expected('Name');
+	GetName := UpCase(Look);
+	GetChar;
 	SkipWhite;
 end;
 
@@ -102,6 +115,8 @@ begin
 		Factor := Expression;
 		Match(')');
 	end
+	else if IsAlpha(Look) then
+		Factor := Table[GetName]
 	else
 		Factor := GetNum;
 end;
@@ -119,11 +134,12 @@ end;
 
 procedure Init;
 begin
+	InitTable;
 	GetChar;
 	SkipWhite;
 end;
 
-procedure Ident;
+{procedure Ident;
 var Name: string[MAX_STR_LEN];
 begin
 	Name := GetName;
@@ -134,7 +150,7 @@ begin
 		end
 	else
 		EmitLn('MOVE ' + Name + '(PC),D0')
-end;
+end;}
 
 { Parse and translate a math term }
 function Term: integer;
@@ -179,19 +195,18 @@ begin
 end;
 
 procedure Assignment;
-var Name: string[MAX_STR_LEN];
+var Name: char;
 begin
 	Name := GetName;
 	Match('=');
-	Expression;
-	EmitLn('LEA ' + Name + '(PC),A0');
-	EmitLn('MOVE D0,(A0)');
+	Table[Name] := Expression;
 end;
 
 {MAIN ENTRY POINT}
 begin
 	Init;
-	//Assignment;
-	Writeln(Expression);
-	if Look <> CR then Expected('Newline');
+	repeat
+		Assignment;
+		NewLine;
+	until Look = '.';
 end.
