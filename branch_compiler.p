@@ -159,6 +159,64 @@ begin
 	PostLabel(L2);
 end;
 
+procedure DoLoop;
+var L: string;
+begin
+	Match('p');
+	L := NewLabel;
+	PostLabel(L);
+	Block;
+	Match('e');
+	EmitLn('BRA ' + L);
+end;
+
+procedure DoRepeat;
+var L: string;
+begin
+	Match('r');
+	L := NewLabel;
+	PostLabel(L);
+	Block;
+	Match('u');
+	Condition;
+	EmitLn('BEQ ' + L);
+end;
+
+procedure Expression;
+begin
+	{ saves the expression to D0 - dont get confused by DoFor using D0 because of that }
+	EmitLn('<expr>');
+end;
+
+procedure DoFor;
+var L1, L2: string;
+	Name: char;
+begin
+	Match('f');
+	L1 := NewLabel;
+	L2 := NewLabel;
+	Name := GetName;
+	Match('=');
+	Expression;
+	EmitLn('SUBQ #1,D0');
+	EmitLn('LEA ' + Name + '(PC),A0');
+	EmitLn('MOVE D0,(A0)');
+	Expression;
+	EmitLn('MOVE D0,-(SP)');
+	PostLabel(L1);
+	EmitLn('LEA ' + Name + '(PC),A0');
+	EmitLn('MOVE (A0),D0');
+	EmitLn('ADDQ #1,D0');
+	EmitLn('MOVE D0,(A0)');
+	EmitLn('CMP (SP),D0');
+	EmitLn('BGT ' + L2);
+	Block;
+	Match('e');
+	EmitLn('BRA ' + L1);
+	PostLabel(L2);
+	EmitLn('ADDQ #2,SP');
+end;
+
 procedure Other;
 begin
 	EmitLn(GetName);
@@ -166,10 +224,13 @@ end;
 
 procedure Block;
 begin
-	while not(Look in ['e', 'l']) do begin
+	while not(Look in ['e', 'l', 'u']) do begin
 		case Look of
 			'i': DoIf;
 			'w': DoWhile;
+			'p': DoLoop;
+			'r': DoRepeat;
+			'f': DoFor;
 			else Other;
 		end;
 	end;
