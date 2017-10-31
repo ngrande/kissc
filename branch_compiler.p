@@ -99,6 +99,7 @@ end;
 { Initialize }
 procedure Init;
 begin
+	LCount := 0;
 	GetChar;
 end;
 
@@ -115,6 +116,49 @@ begin
 	WriteLn(L, ':');
 end;
 
+procedure Condition;
+begin
+	{ Dummy output }
+	EmitLn('<condition>');
+end;
+
+procedure Block; Forward;
+
+procedure DoIf;
+var L1, L2: string;
+begin
+	Match('i');
+	Condition;
+	L1 := NewLabel;
+	L2 := L1;
+	EmitLn('BEQ ' + L1);
+	Block;
+	if Look = 'l' then begin
+		Match('l');
+		L2 := NewLabel;
+		EmitLn('BRA ' + L2);
+		PostLabel(L1);
+		Block;
+	end;
+	Match('e');
+	PostLabel(L2);
+end;
+
+procedure DoWhile;
+var L1, L2: string;
+begin
+	Match('w');
+	L1 := NewLabel;
+	L2 := NewLabel;
+	PostLabel(L1);
+	Condition;
+	EmitLn('BEQ ' + L2);
+	Block;
+	Match('e');
+	EmitLn('BRA ' + L1);
+	PostLabel(L2);
+end;
+
 procedure Other;
 begin
 	EmitLn(GetName);
@@ -122,8 +166,12 @@ end;
 
 procedure Block;
 begin
-	while not(Look in ['e']) do begin
-		Other;
+	while not(Look in ['e', 'l']) do begin
+		case Look of
+			'i': DoIf;
+			'w': DoWhile;
+			else Other;
+		end;
 	end;
 end;
 
