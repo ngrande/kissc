@@ -202,11 +202,27 @@ begin
 	Table[Name] := Expression;
 end;
 
+procedure Input;
+begin
+	Match('?');
+	Read(Table[GetName]);
+end;
+
+procedure Output;
+begin
+	Match('!');
+	WriteLn(Table[GetName]);
+end;
+
 {MAIN ENTRY POINT}
 begin
 	Init;
 	repeat
-		Assignment;
+		case Look of
+			'?': Input;
+			'!': Output;
+		else Assignment;
+		end;
 		NewLine;
 	until Look = '.';
 end.
