@@ -8,6 +8,7 @@ const TAB = ^I;
 {--------------------------------------------------------------}
 { Variable Declarations }
 var Look: char; { Lookahead Character }
+	LCount: integer; { Label Counter }
 
 {--------------------------------------------------------------}
 { Read New Character From Input Stream }
@@ -101,9 +102,42 @@ begin
 	GetChar;
 end;
 
+function NewLabel: string;
+var S: string;
+begin
+	Str(LCount, S);
+	NewLabel := 'L' + S;
+	Inc(LCount);
+end;
+
+procedure PostLabel(L: string);
+begin
+	WriteLn(L, ':');
+end;
+
+procedure Other;
+begin
+	EmitLn(GetName);
+end;
+
+procedure Block;
+begin
+	while not(Look in ['e']) do begin
+		Other;
+	end;
+end;
+
+procedure DoProgram;
+begin
+	Block;
+	if Look <> 'e' then Expected('End');
+	EmitLn('END');
+end;
+
 {--------------------------------------------------------------}
 { Main Program }
 begin
 	Init;
+	DoProgram;
 end.
 {--------------------------------------------------------------}
