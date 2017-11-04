@@ -11,6 +11,7 @@
 <signed factor>	::= [<addop>] <factor>
 <factor>		::= <integer> | <variable> | (<b-expression>)
 <relop>			::= = | <> | != | < | > | <= | >=
+<orop>			::= OR | XOR
 
 #
 # Precedence levels
