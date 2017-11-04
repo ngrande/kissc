@@ -4,6 +4,8 @@ program Cradle;
 {--------------------------------------------------------------}
 { Constant Declarations }
 const TAB = ^I;
+const CR = ^M;
+const LF = ^J;
 
 {--------------------------------------------------------------}
 { Variable Declarations }
@@ -116,6 +118,12 @@ procedure EmitLn(s: string);
 begin
 	Emit(s);
 	WriteLn;
+end;
+
+procedure Fin;
+begin
+	if Look = CR then GetChar;
+	if Look = LF then GetChar;
 end;
 
 {--------------------------------------------------------------}
@@ -464,9 +472,14 @@ begin
 	EmitLn('ADDQ #2,SP');
 end;
 
-procedure Other;
+procedure Assignment;
+var Name: char;
 begin
-	EmitLn(GetName);
+	Name := GetName;
+	Match('=');
+	BoolExpression;
+	EmitLn('LEA ' + Name + '(PC),A0');
+	EmitLn('MOVE D0,(A0)');
 end;
 
 procedure DoBreak(L: string);
@@ -480,6 +493,7 @@ end;
 procedure Block(L: string);
 begin
 	while not(Look in ['e', 'l', 'u']) do begin
+		Fin;
 		case Look of
 			'i': DoIf(L);
 			'w': DoWhile;
@@ -488,8 +502,9 @@ begin
 			'f': DoFor;
 			'd': DoDo;
 			'b': DoBreak(L);
-			else Other;
+			else Assignment;
 		end;
+		Fin;
 	end;
 end;
 
