@@ -122,9 +122,9 @@ begin
 	EmitLn('<condition>');
 end;
 
-procedure Block; Forward;
+procedure Block(L: string); Forward;
 
-procedure DoIf;
+procedure DoIf(L: string);
 var L1, L2: string;
 begin
 	Match('i');
@@ -132,13 +132,13 @@ begin
 	L1 := NewLabel;
 	L2 := L1;
 	EmitLn('BEQ ' + L1);
-	Block;
+	Block(L);
 	if Look = 'l' then begin
 		Match('l');
 		L2 := NewLabel;
 		EmitLn('BRA ' + L2);
 		PostLabel(L1);
-		Block;
+		Block(L);
 	end;
 	Match('e');
 	PostLabel(L2);
@@ -153,33 +153,37 @@ begin
 	PostLabel(L1);
 	Condition;
 	EmitLn('BEQ ' + L2);
-	Block;
+	Block(L2);
 	Match('e');
 	EmitLn('BRA ' + L1);
 	PostLabel(L2);
 end;
 
 procedure DoLoop;
-var L: string;
+var L1, L2: string;
 begin
 	Match('p');
-	L := NewLabel;
-	PostLabel(L);
-	Block;
+	L1 := NewLabel;
+	L2 := NewLabel;
+	PostLabel(L1);
+	Block(L2);
 	Match('e');
-	EmitLn('BRA ' + L);
+	EmitLn('BRA ' + L1);
+	PostLabel(L2);
 end;
 
 procedure DoRepeat;
-var L: string;
+var L1, L2: string;
 begin
 	Match('r');
-	L := NewLabel;
-	PostLabel(L);
-	Block;
+	L1 := NewLabel;
+	L2 := NewLabel;
+	PostLabel(L1);
+	Block(L2);
 	Match('u');
 	Condition;
-	EmitLn('BEQ ' + L);
+	EmitLn('BEQ ' + L1);
+	PostLabel(L2);
 end;
 
 procedure Expression;
@@ -210,9 +214,27 @@ begin
 	EmitLn('MOVE D0,(A0)');
 	EmitLn('CMP (SP),D0');
 	EmitLn('BGT ' + L2);
-	Block;
+	Block(L2);
 	Match('e');
 	EmitLn('BRA ' + L1);
+	PostLabel(L2);
+	EmitLn('ADDQ #2,SP');
+end;
+
+procedure DoDo;
+var L1, L2: string;
+begin
+	Match('d');
+	L1 := NewLabel;
+	L2 := NewLabel;
+	Expression;
+	EmitLn('SUBQ #1,D0');
+	PostLabel(L1);
+	EmitLn('MOVE D0,-(SP)');
+	Block(L2);
+	EmitLn('MOVE (SP)+,D0');
+	EmitLn('DBRA D0,' + L1);
+	EmitLn('SUBQ #2,SP');
 	PostLabel(L2);
 	EmitLn('ADDQ #2,SP');
 end;
@@ -222,15 +244,25 @@ begin
 	EmitLn(GetName);
 end;
 
-procedure Block;
+procedure DoBreak(L: string);
+begin
+	Match('b');
+	if L <> '' then
+		EmitLn('BRA ' + L)
+	else Abort('No loop to break from');
+end;
+
+procedure Block(L: string);
 begin
 	while not(Look in ['e', 'l', 'u']) do begin
 		case Look of
-			'i': DoIf;
+			'i': DoIf(L);
 			'w': DoWhile;
 			'p': DoLoop;
 			'r': DoRepeat;
 			'f': DoFor;
+			'd': DoDo;
+			'b': DoBreak(L);
 			else Other;
 		end;
 	end;
@@ -238,7 +270,7 @@ end;
 
 procedure DoProgram;
 begin
-	Block;
+	Block('');
 	if Look <> 'e' then Expected('End');
 	EmitLn('END');
 end;
