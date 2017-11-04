@@ -125,7 +125,6 @@ end;
 
 procedure BoolFactor;
 begin
-	if not IsBoolean(Look) then Expected('Boolean Literal');
 	if IsBoolean(Look) then
 		if GetBoolean then
 			{ -1 or FFFF for True }
@@ -133,7 +132,7 @@ begin
 		else
 			{ 0 for False }
 			EmitLn('CLR D0')
-		else Relation;
+	else Relation;
 end;
 
 procedure NotFactor;
