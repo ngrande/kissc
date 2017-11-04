@@ -3,36 +3,22 @@ program Cradle;
 
 {--------------------------------------------------------------}
 { Constant Declarations }
-const TAB = ^I;
-const CR = ^M;
-const LF = ^J;
+const	TAB = ^I;
+		CR = ^M;
+		LF = ^J;
+		ENDC = '.';
+
 
 {--------------------------------------------------------------}
 { Variable Declarations }
 var Look: char; { Lookahead Character }
+	Token: string[16];
 
 {--------------------------------------------------------------}
 { Read New Character From Input Stream }
 procedure GetChar;
 begin
 	Read(Look);
-end;
-
-function IsWhite(c: char): boolean;
-begin
-    IsWhite := c in [' ', TAB];
-end;
-
-procedure SkipWhite;
-begin
-    while IsWhite(Look) do
-        GetChar;
-end;
-
-procedure Fin;
-begin
-	if Look = CR then GetChar;
-	if Look = LF then GetChar;
 end;
 
 {--------------------------------------------------------------}
@@ -80,22 +66,57 @@ begin
 	IsDigit := c in ['0'..'9'];
 end;
 
+function IsAlNum(c: char): boolean;
+begin
+	IsAlNum := IsAlpha(c) or IsDigit(c);
+end;
+
+function IsWhite(c: char): boolean;
+begin
+	IsWhite := c in [' ', TAB];
+end;
+
+procedure SkipWhite;
+begin
+	while IsWhite(Look) do
+		GetChar;
+end;
+
+procedure Fin;
+begin
+	if Look = CR then GetChar;
+	if Look = LF then GetChar;
+end;
+
 {--------------------------------------------------------------}
 { Get an Identifier }
-function GetName: char;
+function GetName: string;
+var x: string[8];
 begin
+	x := '';
 	if not IsAlpha(Look) then Expected('Name');
-	GetName := UpCase(Look);
-	GetChar;
+	while IsAlNum(Look) do begin
+		x := x + UpCase(Look);
+		GetChar;
+	end;
+	GetName := x;
+	SkipWhite;
 end;
 
 {--------------------------------------------------------------}
 { Get a Number }
-function GetNum: char;
+function GetNum: string;
+{ do not know why we use 16 here despite a 64 bit integer would be 20 digits and a 32 bit integer would be 10 digits... }
+var x: string[16];
 begin
+	x := '';
 	if not IsDigit(Look) then Expected('Integer');
-	GetNum := Look;
-	GetChar;
+	while IsDigit(Look) do begin
+		x := x + Look;
+		GetChar;
+	end;
+	GetNum := x;
+	SkipWhite;
 end;
 
 {--------------------------------------------------------------}
@@ -118,11 +139,30 @@ end;
 procedure Init;
 begin
 	GetChar;
+	Token := '';
+end;
+
+function Scan: string;
+begin
+	if IsAlpha(Look) then
+		Scan := GetName
+	else if IsDigit(Look) then
+		Scan := GetNum
+	else begin
+		Scan := Look;
+		GetChar;
+	end;
+	SkipWhite;
 end;
 
 {--------------------------------------------------------------}
 { Main Program }
 begin
 	Init;
+	repeat
+		Token := Scan;
+		WriteLn(Token);
+		if Token = CR then Fin;
+	until Token = ENDC;
 end.
 {--------------------------------------------------------------}
