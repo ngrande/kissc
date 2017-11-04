@@ -144,6 +144,9 @@ end;
 
 function Scan: string;
 begin
+	while Look = CR do
+		Fin;
+
 	if IsAlpha(Look) then
 		Scan := GetName
 	else if IsDigit(Look) then
