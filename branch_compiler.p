@@ -62,6 +62,29 @@ begin
 	IsDigit := c in ['0'..'9'];
 end;
 
+function IsAddop(c: char): boolean;
+begin
+    IsAddop := c in ['+', '-'];
+end;
+
+function IsOrop(c: char): boolean;
+begin
+    IsOrop := c in ['~', '|'];
+end;
+
+function IsBoolean(c: char): Boolean;
+begin
+    {T: True, F: False}
+    IsBoolean := UpCase(c) in ['T', 'F'];
+end;
+
+function GetBoolean: Boolean;
+begin
+    if not IsBoolean(Look) then Expected('Boolean Literal');
+    GetBoolean := UpCase(Look) = 'T';
+    GetChar;
+end;
+
 {--------------------------------------------------------------}
 { Get an Identifier }
 function GetName: char;
@@ -116,11 +139,121 @@ begin
 	WriteLn(L, ':');
 end;
 
-procedure Condition;
+procedure Expression; Forward;
+
+procedure Equals;
 begin
-	{ Dummy output }
-	EmitLn('<condition>');
+    Match('=');
+    Expression;
+    EmitLn('CMP (SP)+,D0');
+    EmitLn('SEQ D0');
 end;
+
+procedure NotEquals;
+begin
+    { # is for != or <> - workaround because of the one char limitation }
+    Match('#');
+    Expression;
+    EmitLn('CMP (SP)+,D0');
+    EmitLn('SNE D0');
+end;
+
+procedure Less;
+begin
+    Match('<');
+    Expression;
+    EmitLn('CMP (SP)+,D0');
+    EmitLn('SGE D0');
+end;
+
+procedure Greater;
+begin
+    Match('>');
+    Expression;
+    EmitLn('CMP (SP)+,D0');
+    EmitLn('SLE D0');
+end;
+
+function IsRelop(c: char): boolean;
+begin
+    IsRelop := c in ['=', '#', '<', '>'];
+end;
+
+procedure Relation;
+begin
+    Expression;
+    if IsRelop(Look) then begin
+        EmitLn('MOVE D0,-(SP)');
+        case Look of
+         '=': Equals;
+         '#': NotEquals;
+         '<': Less;
+         '>': Greater;
+        end;
+        EmitLn('TST D0');
+    end;
+end;
+
+procedure BoolFactor;
+begin
+    if IsBoolean(Look) then
+        if GetBoolean then
+            { -1 or FFFF for True }
+            EmitLn('MOVE #-1,D0')
+        else
+            { 0 for False }
+            EmitLn('CLR D0')
+    else Relation;
+end;
+
+procedure NotFactor;
+begin
+    if Look = '!' then begin
+        Match('!');
+        BoolFactor;
+        EmitLn('EOR #-1,D0');
+        end
+    else
+        BoolFactor;
+end;
+
+procedure BoolTerm;
+begin
+    NotFactor;
+    while Look = '&' do begin
+        EmitLn('MOVE D0,-(SP)');
+        Match('&');
+        NotFactor;
+        EmitLn('AND (SP)+,D0');
+    end;
+end;
+
+procedure BoolOr;
+begin
+    Match('|');
+    BoolTerm;
+    EmitLn('OR (SP)+,D0');
+end;
+
+procedure BoolXor;
+begin
+    Match('~');
+    BoolTerm;
+    EmitLn('EOR (SP)+,D0');
+end;
+
+procedure BoolExpression;
+begin
+    BoolTerm;
+    while IsOrOp(Look) do begin
+        EmitLn('MOVE D0,-(SP)');
+        case Look of
+         '|': BoolOr;
+         '~': BoolXor;
+        end;
+    end;
+end;
+
 
 procedure Block(L: string); Forward;
 
@@ -128,7 +261,7 @@ procedure DoIf(L: string);
 var L1, L2: string;
 begin
 	Match('i');
-	Condition;
+	BoolExpression;
 	L1 := NewLabel;
 	L2 := L1;
 	EmitLn('BEQ ' + L1);
@@ -151,7 +284,7 @@ begin
 	L1 := NewLabel;
 	L2 := NewLabel;
 	PostLabel(L1);
-	Condition;
+	BoolExpression;
 	EmitLn('BEQ ' + L2);
 	Block(L2);
 	Match('e');
@@ -181,15 +314,107 @@ begin
 	PostLabel(L1);
 	Block(L2);
 	Match('u');
-	Condition;
+	BoolExpression;
 	EmitLn('BEQ ' + L1);
 	PostLabel(L2);
 end;
 
+procedure Ident;
+var Name: char;
+begin
+    Name := GetName;
+    if Look = '(' then begin
+        Match('(');
+        MatcH(')');
+        EmitLn('BSR ' + Name);
+        end
+    else
+        EmitLn('MOVE ' + Name + '(PC),D0');
+end;
+
+procedure Factor;
+begin
+    if Look = '(' then begin
+        Match('(');
+        Expression;
+        Match(')');
+        end
+    else if IsAlpha(Look) then
+        Ident
+    else
+        EmitLn('MOVE #' + GetNum + ',D0');
+end;
+
+procedure SignedFactor;
+begin
+    if Look = '+' then
+        GetChar;
+    if Look = '-' then begin
+        GetChar;
+        if IsDigit(Look) then
+            EmitLn('MOVE #-' + GetNum + ',D0')
+        else begin
+            Factor;
+            EmitLn('NEG D0');
+        end;
+    end
+    else Factor;
+end;
+
+procedure Multiply;
+begin
+    Match('*');
+    Factor;
+    EmitLn('MULS (SP)+,D0');
+end;
+
+procedure Divide;
+begin
+    Match('/');
+    Factor;
+    EmitLn('MOVE (SP)+,D1');
+    EmitLn('EXS.L D0');
+    EmitLn('DIVS D1,D0');
+end;
+
+procedure Term;
+begin
+    SignedFactor;
+    while Look in ['*', '/'] do begin
+        EmitLn('MOVE D0,-(SP)');
+        case Look of
+         '*': Multiply;
+         '/': Divide;
+        end;
+    end;
+end;
+
+
+procedure Add;
+begin
+    Match('+');
+    Term;
+    EmitLn('ADD (SP)+,D0');
+end;
+
+procedure Subtract;
+begin
+    Match('-');
+    Term;
+    EmitLn('SUB (SP)+,D0');
+    EmitLn('NEG D0');
+end;
+
 procedure Expression;
 begin
-	{ saves the expression to D0 - dont get confused by DoFor using D0 because of that }
-	EmitLn('<expr>');
+    Term;
+    while IsAddop(Look) do begin
+        EmitLn('MOVE D0,-(SP)');
+        case Look of
+         '+': Add;
+         '-': Subtract;
+        end;
+    end;
 end;
 
 procedure DoFor;
