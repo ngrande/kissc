@@ -6,13 +6,19 @@ program Cradle;
 const	TAB = ^I;
 		CR = ^M;
 		LF = ^J;
-		ENDC = '.';
 
+type	Symbol = string[8];
+		SymTab = array[1..1000] of Symbol;
+		TabPtr = ^SymTab;
+		SymType = (IfSym, ElseSym, EndifSym, EndSym, Ident, Number, Operator_);
+
+const KwList: array [1..4] of Symbol = ('IF', 'ELSE', 'ENDIF', 'END');
 
 {--------------------------------------------------------------}
 { Variable Declarations }
 var Look: char; { Lookahead Character }
-	Token: string[16];
+	Token: SymType;
+	Value: string[16];
 
 {--------------------------------------------------------------}
 { Read New Character From Input Stream }
@@ -52,6 +58,20 @@ begin
 	else Expected('''' + x + '''');
 end;
 
+function Lookup(T: TabPtr; s: string; n: integer): integer;
+var i: integer;
+	found: boolean;
+begin
+	found := false;
+	i := n;
+	while (i > 0) and not found do
+		if s = T^[i] then
+			found := true
+		else
+			dec(i);
+	Lookup := i;
+end;
+
 {--------------------------------------------------------------}
 { Recognize an Alpha Character }
 function IsAlpha(c: char): boolean;
@@ -76,6 +96,11 @@ begin
 	IsWhite := c in [' ', TAB];
 end;
 
+function IsOp(c: char): boolean;
+begin
+	IsOp := c in ['+', '-', '*', '/', '<', '>', ':', '='];
+end;
+
 procedure SkipWhite;
 begin
 	while IsWhite(Look) do
@@ -90,33 +115,44 @@ end;
 
 {--------------------------------------------------------------}
 { Get an Identifier }
-function GetName: string;
-var x: string[8];
+procedure GetName;
+var k: integer;
 begin
-	x := '';
+	Value := '';
 	if not IsAlpha(Look) then Expected('Name');
 	while IsAlNum(Look) do begin
-		x := x + UpCase(Look);
+		Value := Value + UpCase(Look);
 		GetChar;
 	end;
-	GetName := x;
-	SkipWhite;
+	k := Lookup(Addr(KwList), Value, 4);
+	if k = 0 then
+		Token := Ident
+	else
+		Token := SymType(k-1);
 end;
 
 {--------------------------------------------------------------}
 { Get a Number }
-function GetNum: string;
-{ do not know why we use 16 here despite a 64 bit integer would be 20 digits and a 32 bit integer would be 10 digits... }
-var x: string[16];
+procedure GetNum;
 begin
-	x := '';
+	Value := '';
 	if not IsDigit(Look) then Expected('Integer');
 	while IsDigit(Look) do begin
-		x := x + Look;
+		Value := Value + Look;
 		GetChar;
 	end;
-	GetNum := x;
-	SkipWhite;
+	Token := Number;
+end;
+
+procedure GetOp;
+begin
+	Value := '';
+	if not IsOp(Look) then Expected('Operator');
+	while IsOp(Look) do begin
+		Value := Value + Look;
+		GetChar;
+	end;
+	Token := Operator_;
 end;
 
 {--------------------------------------------------------------}
@@ -139,20 +175,23 @@ end;
 procedure Init;
 begin
 	GetChar;
-	Token := '';
 end;
 
-function Scan: string;
+procedure Scan;
+var k: integer;
 begin
 	while Look = CR do
 		Fin;
 
 	if IsAlpha(Look) then
-		Scan := GetName
+		GetName
 	else if IsDigit(Look) then
-		Scan := GetNum
+		GetNum
+	else if IsOp(Look) then
+		GetOp
 	else begin
-		Scan := Look;
+		Value := Look;
+		Token := Operator_;
 		GetChar;
 	end;
 	SkipWhite;
@@ -163,9 +202,14 @@ end;
 begin
 	Init;
 	repeat
-		Token := Scan;
-		WriteLn(Token);
-		if Token = CR then Fin;
-	until Token = ENDC;
+		Scan;
+		case Token of
+			Ident: Write('Ident ');
+			Number: Write('Number ');
+			Operator_: Write('Operator');
+			IfSym, ElseSym, EndifSym, EndSym: Write('Keyword ');
+		end;
+		WriteLn(Value);
+	until Token = EndSym;
 end.
 {--------------------------------------------------------------}
