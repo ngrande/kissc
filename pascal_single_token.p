@@ -120,6 +120,26 @@ begin
 	GetChar;
 end;
 
+procedure PostLabel(L: string);
+begin
+	WriteLn(L, ':');
+end;
+
+procedure Declarations;
+begin
+end;
+
+procedure Statements;
+begin
+end;
+
+procedure DoBlock(Name: char);
+begin
+	Declarations;
+	PostLabel(Name);
+	Statements;
+end;
+
 procedure Prolog;
 begin
 	{ for OS SK*DOS }
@@ -139,6 +159,7 @@ begin
 	Match('p');
 	Name := GetName;
 	Prolog;
+	DoBlock(Name);
 	Match('.');
 	Epilog(Name);
 end;
