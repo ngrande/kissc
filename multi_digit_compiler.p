@@ -8,19 +8,19 @@ var Look: char;
 
 procedure Error(s: string);
 begin
-        WriteLn;
-        WriteLn(^G, 'Error: ', s, '.');
+		WriteLn;
+		WriteLn(^G, 'Error: ', s, '.');
 end;
 
 procedure Abort(s: string);
 begin
-        Error(s);
-        Halt;
+		Error(s);
+		Halt;
 end;
 
 procedure Expected(s: string);
 begin
-        Abort(s + ' Expected');
+		Abort(s + ' Expected');
 end;
 
 function IsAddop(c: char): boolean;
@@ -30,12 +30,12 @@ end;
 
 function IsAlpha(c: char): boolean;
 begin
-        IsAlpha := upcase(c) in ['A'..'Z'];
+		IsAlpha := upcase(c) in ['A'..'Z'];
 end;
 
 function IsDigit(c: char): boolean;
 begin
-        IsDigit := c in ['0'..'9'];
+		IsDigit := c in ['0'..'9'];
 end;
 
 function IsAlNum(c: char): boolean;
@@ -50,7 +50,7 @@ end;
 
 procedure GetChar;
 begin
-        Read(Look);
+		Read(Look);
 end;
 
 procedure SkipWhite;
@@ -58,11 +58,11 @@ begin
 	while IsWhite(Look) do
 		GetChar;
 end;
- 
+
 procedure Match(x: char);
 begin
-        if Look <> x then Expected ('''' + x + '''')
-        else begin
+		if Look <> x then Expected ('''' + x + '''')
+		else begin
 		GetChar;
 		SkipWhite;
 	end;
@@ -72,12 +72,12 @@ function GetName: string;
 var Token: string;
 begin
 	Token := '';
-        if not IsAlpha(Look) then Expected('Name');
+		if not IsAlpha(Look) then Expected('Name');
 	while IsAlNum(Look) do begin
 		Token := Token + UpCase(Look);
 		GetChar;
 	end;
-        GetName := Token;
+		GetName := Token;
 	SkipWhite;
 end;
 
@@ -85,29 +85,29 @@ function GetNum: string;
 var Value: string;
 begin
 	Value := '';
-        if not IsDigit(Look) then Expected('Integer');
+		if not IsDigit(Look) then Expected('Integer');
 	while IsDigit(Look) do begin
 		Value := Value + Look;
 		GetChar;
 	end;
-        GetNum := Value;
+		GetNum := Value;
 	SkipWhite;
 end;
-      
+	
 procedure Emit(s: string);
 begin
-        Write(TAB, s);
+		Write(TAB, s);
 end;
 
 procedure EmitLn(s: string);
 begin
-        Emit(s);
-        WriteLn;
+		Emit(s);
+		WriteLn;
 end;
 
 procedure Init;
 begin
-        GetChar;
+		GetChar;
 	SkipWhite;
 end;
 
@@ -160,8 +160,8 @@ begin
 	while Look in ['*', '/'] do begin
 		EmitLn('MOVE D0,-(SP)');
 		case Look of
-		 '*': Multiply;
-		 '/': Divide;
+		'*': Multiply;
+		'/': Divide;
 		else Expected('Mulop');
 		end;
 	end;
@@ -191,8 +191,8 @@ begin
 	while IsAddop(Look) do begin
 		EmitLn('MOVE D0,-(SP)');
 		case Look of
-		 '+': Add;
-		 '-': Subtract;
+		'+': Add;
+		'-': Subtract;
 		else Expected('Addop');
 		end;
 	end;
@@ -210,7 +210,7 @@ end;
 
 {MAIN ENTRY POINT}
 begin
-        Init;
-        Assignment;
+		Init;
+		Assignment;
 	if Look <> CR then Expected('Newline');
 end.

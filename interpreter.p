@@ -76,7 +76,7 @@ begin
 	while IsWhite(Look) do
 		GetChar;
 end;
- 
+
 procedure Match(x: char);
 begin
 	if Look <> x then Expected ('''' + x + '''')
@@ -120,7 +120,7 @@ begin
 	else
 		Factor := GetNum;
 end;
-      
+	
 procedure Emit(s: string);
 begin
 	Write(TAB, s);

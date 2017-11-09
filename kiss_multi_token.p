@@ -225,8 +225,8 @@ begin
 	while IsMulop(Look) do begin
 		EmitLn('MOVE D0,-(SP)');
 		case Look of
-		 '*': Multiply;
-		 '/': Divide;
+		'*': Multiply;
+		'/': Divide;
 		end;
 	end;
 end;
@@ -264,8 +264,8 @@ begin
 	while IsAddop(Look) do begin
 		EmitLn('MOVE D0,-(SP)');
 		case Look of
-		 '+': Add;
-		 '-': Subtract;
+		'+': Add;
+		'-': Subtract;
 		end;
 	end;
 end;
@@ -310,8 +310,8 @@ begin
 	Scan;
 	while not (Token in ['e', 'l']) do begin
 		case Token of
-		 'i': DoIf;
-		 else Assignment;
+		'i': DoIf;
+		else Assignment;
 		end;
 		Scan;
 	end;

@@ -183,8 +183,8 @@ begin
 	while Look in ['*', '/'] do begin
 		EmitLn('MOVE D0,-(SP)');
 		case Look of
-		 '*': Multiply;
-		 '/': Divide;
+		'*': Multiply;
+		'/': Divide;
 		end;
 	end;
 end;
@@ -210,8 +210,8 @@ begin
 	while IsAddop(Look) do begin
 		EmitLn('MOVE D0,-(SP)');
 		case Look of
-		 '+': Add;
-		 '-': Subtract;
+		'+': Add;
+		'-': Subtract;
 		end;
 	end;
 end;
@@ -260,10 +260,10 @@ begin
 	if IsRelop(Look) then begin
 		EmitLn('MOVE D0,-(SP)');
 		case Look of
-		 '=': Equals;
-		 '#': NotEquals;
-		 '<': Less;
-		 '>': Greater;
+		'=': Equals;
+		'#': NotEquals;
+		'<': Less;
+		'>': Greater;
 		end;
 		EmitLn('TST D0');
 	end;
@@ -323,8 +323,8 @@ begin
 	while IsOrOp(Look) do begin
 		EmitLn('MOVE D0,-(SP)');
 		case Look of
-		 '|': BoolOr;
-		 '~': BoolXor;
+		'|': BoolOr;
+		'~': BoolXor;
 		end;
 	end;
 end;

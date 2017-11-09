@@ -20,13 +20,13 @@ end;
 
 function IsWhite(c: char): boolean;
 begin
-    IsWhite := c in [' ', TAB];
+	IsWhite := c in [' ', TAB];
 end;
 
 procedure SkipWhite;
 begin
-    while IsWhite(Look) do
-        GetChar;
+	while IsWhite(Look) do
+		GetChar;
 end;
 
 procedure Fin;
