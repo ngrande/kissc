@@ -7,30 +7,30 @@ var look: char;
 
 procedure GetChar;
 begin
-        Read(look);
+		Read(look);
 end;
 
 procedure Error(s: string);
 begin
-        WriteLn;
-        WriteLn(^G, 'Error: ', s, '.');
+		WriteLn;
+		WriteLn(^G, 'Error: ', s, '.');
 end;
 
 procedure Abort(s: string);
 begin
-        Error(s);
-        Halt;
+		Error(s);
+		Halt;
 end;
 
 procedure Expected(s: string);
 begin
-        Abort(s + ' Expected');
+		Abort(s + ' Expected');
 end;
 
 procedure Match(x: char);
 begin
-        if look = x then GetChar
-        else Expected('''' + x + '''');
+		if look = x then GetChar
+		else Expected('''' + x + '''');
 end;
 
 function IsAddop(c: char): boolean;
@@ -40,42 +40,42 @@ end;
 
 function IsAlpha(c: char): boolean;
 begin
-        IsAlpha := upcase(c) in ['A'..'Z'];
+		IsAlpha := upcase(c) in ['A'..'Z'];
 end;
 
 function IsDigit(c: char): boolean;
 begin
-        IsDigit := c in ['0'..'9'];
+		IsDigit := c in ['0'..'9'];
 end;
 
 function GetName: char;
 begin
-        if not IsAlpha(look) then Expected('Name');
-        GetName := UpCase(look);
-        GetChar;
+		if not IsAlpha(look) then Expected('Name');
+		GetName := UpCase(look);
+		GetChar;
 end;
 
 function GetNum: char;
 begin
-        if not IsDigit(look) then Expected('Integer');
-        GetNum := look;
-        GetChar;
+		if not IsDigit(look) then Expected('Integer');
+		GetNum := look;
+		GetChar;
 end;
-       
+	
 procedure Emit(s: string);
 begin
-        Write(TAB, s);
+		Write(TAB, s);
 end;
 
 procedure EmitLn(s: string);
 begin
-        Emit(s);
-        WriteLn;
+		Emit(s);
+		WriteLn;
 end;
 
 procedure Init;
 begin
-        GetChar;
+		GetChar;
 end;
 
 procedure Expression; forward;
@@ -127,8 +127,8 @@ begin
 	while look in ['*', '/'] do begin
 		EmitLn('MOVE D0,-(SP)');
 		case look of
-		 '*': Multiply;
-		 '/': Divide;
+		'*': Multiply;
+		'/': Divide;
 		else Expected('Mulop');
 		end;
 	end;
@@ -158,8 +158,8 @@ begin
 	while IsAddop(look) do begin
 		EmitLn('MOVE D0,-(SP)');
 		case look of
-		 '+': Add;
-		 '-': Subtract;
+		'+': Add;
+		'-': Subtract;
 		else Expected('Addop');
 		end;
 	end;
@@ -177,7 +177,7 @@ end;
 
 {MAIN ENTRY POINT}
 begin
-        Init;
-        Assignment;
+		Init;
+		Assignment;
 	if look <> CR then Expected('Newline');
 end.

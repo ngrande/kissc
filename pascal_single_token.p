@@ -125,8 +125,47 @@ begin
 	WriteLn(L, ':');
 end;
 
+procedure Labels;
+begin
+	Match('l');
+end;
+
+procedure Contants;
+begin
+	Match('c');
+end;
+
+procedure Types;
+begin
+	Match('t');
+end;
+
+procedure Variables;
+begin
+	Match('v');
+end;
+
+procedure DoProcedure;
+begin
+	Match('p');
+end;
+
+procedure DoFunction;
+begin
+	Match('f');
+end;
+
 procedure Declarations;
 begin
+	while Look in ['l', 'c', 't', 'v', 'p', 'f'] do
+		case Look of
+		'l': Labels;
+		'c': Contants;
+		't': Types;
+		'v': Variables;
+		'p': DoProcedure;
+		'f': DoFunction;
+		end;
 end;
 
 procedure Statements;
