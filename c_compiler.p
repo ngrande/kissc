@@ -9,7 +9,10 @@ const LF = ^J;
 
 {--------------------------------------------------------------}
 { Variable Declarations }
-var Look: char; { Lookahead Character }
+var Look:	char; { Lookahead Character }
+	Class:	char;
+	Sign:	char;
+	Typ:	char;
 
 {--------------------------------------------------------------}
 { Read New Character From Input Stream }
@@ -120,97 +123,71 @@ begin
 	GetChar;
 end;
 
-procedure PostLabel(L: string);
+procedure GetClass;
 begin
-	WriteLn(L, ':');
-end;
-
-procedure Labels;
-begin
-	Match('l');
-end;
-
-procedure Contants;
-begin
-	Match('c');
-end;
-
-procedure Types;
-begin
-	Match('t');
-end;
-
-procedure Variables;
-begin
-	Match('v');
-end;
-
-procedure DoProcedure;
-begin
-	Match('p');
-end;
-
-procedure DoFunction;
-begin
-	Match('f');
-end;
-
-procedure Declarations;
-begin
-	while Look in ['l', 'c', 't', 'v', 'p', 'f'] do
-		case Look of
-		'l': Labels;
-		'c': Contants;
-		't': Types;
-		'v': Variables;
-		'p': DoProcedure;
-		'f': DoFunction;
-		end;
-end;
-
-procedure Statements;
-begin
-	Match('b');
-	while Look <> 'e' do
+	{ auto, eXtern and static }
+	if Look in ['a', 'x', 's'] then begin
+		Class := Look;
 		GetChar;
-	Match('e');
+		end
+	else Class := 'a';
 end;
 
-procedure DoBlock(Name: char);
+procedure GetType;
 begin
-	Declarations;
-	PostLabel(Name);
-	Statements;
+	Typ := ' ';
+	if Look = 'u' then begin
+		Sign := 'u';
+		Typ := 'i';
+		GetChar;
+		end
+	else Sign := 's';
+	if Look in ['i', 'l', 'c'] then begin
+		Typ := Look;
+		GetChar;
+	end;
 end;
 
-procedure Prolog;
+procedure DoFunc(n: char);
 begin
-	{ for OS SK*DOS }
-	EmitLn('WARMST EQU $A01E');
+	Match('(');
+	Match(')');
+	Match('{');
+	Match('}');
+	if Typ = ' ' then Typ := 'i';
+	WriteLn(Class, Sign, Typ, ' function ', n);
 end;
 
-procedure Epilog(Name: char);
+procedure DoData(n: char);
 begin
-	{ for OS SK*DOS }
-	EmitLn('DC WARMST');
-	EmitLn('END ' + Name);
+	if Typ = ' ' then Expected('Type declaration');
+	WriteLn(Class, Sign, Typ, ' data ', n);
+	while Look = ',' do begin
+		Match(',');
+		n := GetName;
+		WriteLn(Class, Sign, Typ, ' data ', n);
+	end;
+	Match(';');
 end;
 
-procedure Prog;
+procedure TopDecl;
 var Name: char;
 begin
-	Match('p');
 	Name := GetName;
-	Prolog;
-	DoBlock(Name);
-	Match('.');
-	Epilog(Name);
+	if Look = '(' then
+		DoFunc(Name)
+	else
+		DoData(Name);
 end;
 
 {--------------------------------------------------------------}
 { Main Program }
 begin
 	Init;
-	Prog;
+	while Look <> ^Z do begin
+		GetClass;
+		GetType;
+		TopDecl;
+	end;
 end.
 {--------------------------------------------------------------}
