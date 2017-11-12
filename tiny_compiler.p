@@ -10,6 +10,7 @@ const LF = ^J;
 {--------------------------------------------------------------}
 { Variable Declarations }
 var Look: char; { Lookahead Character }
+	ST: array['A'..'Z'] of char;
 
 {--------------------------------------------------------------}
 { Read New Character From Input Stream }
@@ -66,6 +67,11 @@ begin
 	else Expected('''' + x + '''');
 end;
 
+function InTable(n: char): boolean;
+begin
+	InTable := ST[n] <> ' ';
+end;
+
 {--------------------------------------------------------------}
 { Recognize an Alpha Character }
 function IsAlpha(c: char): boolean;
@@ -91,11 +97,16 @@ end;
 
 {--------------------------------------------------------------}
 { Get a Number }
-function GetNum: char;
+function GetNum: integer;
+var Val: integer;
 begin
+	Val := 0;
 	if not IsDigit(Look) then Expected('Integer');
-	GetNum := Look;
-	GetChar;
+	while IsDigit(Look) do begin
+		Val := 10 * Val + Ord(Look) - Ord('0');
+		GetChar;
+	end;
+	GetNum := Val;
 end;
 
 {--------------------------------------------------------------}
@@ -116,13 +127,80 @@ end;
 {--------------------------------------------------------------}
 { Initialize }
 procedure Init;
+var i: char;
 begin
+	{ init symbol table }
+	for i := 'A' to 'Z' do
+		ST[i] := ' ';
 	GetChar;
+end;
+
+procedure Undefined(n: string);
+begin
+	Abort('Undefined Identifier ' + n);
 end;
 
 procedure PostLabel(s: string);
 begin
 	WriteLn(s, ':');
+end;
+
+procedure Clear;
+begin
+	EmitLn('CLR D0');
+end;
+
+procedure Negate;
+begin
+	EmitLn('NEG D0');
+end;
+
+procedure LoadConst(n: integer);
+begin
+	Emit('MOVE #');
+	WriteLn(n, ',D0');
+end;
+
+procedure LoadVar(Name: char);
+begin
+	if not InTable[Name] then Undefined(Name);
+	EmitLn('MOVE ' + Name + ' (PC),D0');
+end;
+
+procedure Push;
+begin
+	EmitLn('MOVE D0,-(SP)');
+end;
+
+procedure PopAdd;
+begin
+	EmitLn('ADD (SP)+,D0');
+end;
+
+procedure PopSub;
+begin
+	EmitLn('SUB (SP)+,D0');
+	EmitLn('NEG D0');
+end;
+
+procedure PopMul;
+begin
+	EmitLn('MULS (SP)+,D0');
+end;
+
+procedure PopDiv;
+begin
+	EmitLn('MOVE (SP)+,D7');
+	EmitLn('EXT.L D7');
+	EmitLn('DIVS D0,D7');
+	EmitLn('MOVE D7,D0');
+end;
+
+procedure Store(Name: char);
+begin
+	if not InTable[Name] then Undefined(Name);
+	EmitLn('LEA ' + Name + '(PC),A0');
+	EmitLn('MOVE D0,(A0)');
 end;
 
 procedure Header;
@@ -142,19 +220,37 @@ begin
 	EmitLn('END MAIN');
 end;
 
+procedure Assignment;
+begin
+	GetChar;
+end;
+
+procedure Block;
+begin
+	while Look <> 'e' do
+		Assignment;
+end;
+
 procedure Main;
 begin
 	Match('b');
 	Prolog;
+	Block;
 	Match('e');
 	Epilog;
 end;
 
-procedure Alloc(n: char);
+procedure Alloc(N: char);
 begin
-	Write(n, ':', TAB, 'DC ');
+	if InTable(N) then Abort('Duplicate Variable Name ' + N);
+	ST[N] := 'v';
+	Write(N, ':', TAB, 'DC ');
 	if Look = '=' then begin
 		Match('=');
+		if Look = '-' then begin
+			Write(Look);
+			Match('-');
+		end;
 		WriteLn(GetNum);
 		end
 	else
