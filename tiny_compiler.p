@@ -142,13 +142,52 @@ begin
 	EmitLn('END MAIN');
 end;
 
+procedure Main;
+begin
+	Match('b');
+	Prolog;
+	Match('e');
+	Epilog;
+end;
+
+procedure Alloc(n: char);
+begin
+	Write(n, ':', TAB, 'DC ');
+	if Look = '=' then begin
+		Match('=');
+		WriteLn(GetNum);
+		end
+	else
+		WriteLn('0');
+end;
+
+procedure Decl;
+var Name: char;
+begin
+	Match('v');
+	Alloc(GetName);
+	while Look = ',' do begin
+		GetChar;
+		Alloc(GetName);
+	end;
+end;
+
+procedure TopDecls;
+begin
+	while Look <> 'b' do
+		case Look of
+		 'v': Decl;
+		else Abort('Unrecognized Keyword ''' + Look + '''');
+		end;
+end;
+
 procedure Prog;
 begin
 	Match('p');
 	Header;
-	Prolog;
+	TopDecls;
+	Main;
 	Match('.');
-	Epilog;
 end;
 
 {--------------------------------------------------------------}
