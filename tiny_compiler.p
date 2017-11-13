@@ -3,21 +3,46 @@ program Cradle;
 
 {--------------------------------------------------------------}
 { Constant Declarations }
-const TAB = ^I;
-const CR = ^M;
-const LF = ^J;
+const	TAB = ^I;
+const	CR = ^M;
+const	LF = ^J;
 
+type	Symbol = string[8];
+		SymTab = array[1..1000] of Symbol;
+		TabPtr = ^SymTab;
 {--------------------------------------------------------------}
 { Variable Declarations }
-var Look: char; { Lookahead Character }
-	ST: array['A'..'Z'] of char;
-	LCount: integer;
+var		Look: char;			{ Lookahead Character	}
+		Token: char;		{ Encoded Token			}
+		Value: string[16];	{ Unencoded Token		}
+		ST: array['A'..'Z'] of char;
+		LCount: integer;
+
+const	NKW = 9;
+		NKW1 = 10;
+
+const	KWList: array[1..NKW] of Symbol = ('IF', 'ELSE', 'ENDIF', 'WHILE', 'ENDWHILE', 'VAR', 'BEGIN', 'END', 'PROGRAM');
+		KWCode: string[NKW1] = 'xilewevbep';
 
 {--------------------------------------------------------------}
 { Read New Character From Input Stream }
 procedure GetChar;
 begin
 	Read(Look);
+end;
+
+function Lookup(T: TabPtr; s: string; n: integer): integer;
+var i: integer;
+	found: boolean;
+begin
+	found := false;
+	i := n;
+	while (i > 0) and not found do
+		if s = T^[i] then
+			found := true
+		else
+			dec(i);
+	Lookup := i;
 end;
 
 function IsWhite(c: char): boolean;
@@ -35,6 +60,15 @@ procedure Fin;
 begin
 	if Look = CR then GetChar;
 	if Look = LF then GetChar;
+end;
+
+procedure NewLine;
+begin
+	while Look = CR do begin
+		GetChar;
+		if Look = LF then GetChar;
+		SkipWhite;
+	end;
 end;
 
 {--------------------------------------------------------------}
@@ -64,8 +98,14 @@ end;
 { Match a Specific Input Character }
 procedure Match(x: char);
 begin
+	NewLine;
 	if Look = x then GetChar
 	else Expected('''' + x + '''');
+end;
+
+procedure MatchString(x: string);
+begin
+	if Value <> x then Expected('''' + x + '''');
 end;
 
 function InTable(n: char): boolean;
@@ -85,6 +125,11 @@ end;
 function IsDigit(c: char): boolean;
 begin
 	IsDigit := c in ['0'..'9'];
+end;
+
+function IsAlNum(c: char): boolean;
+begin
+	IsAlNum := IsAlpha(c) or IsDigit(c);
 end;
 
 function IsMulop(c: char): boolean;
@@ -109,11 +154,16 @@ end;
 
 {--------------------------------------------------------------}
 { Get an Identifier }
-function GetName: char;
+procedure GetName;
 begin
+	NewLine;
 	if not IsAlpha(Look) then Expected('Name');
-	GetName := UpCase(Look);
-	GetChar;
+	Value := '';
+	while IsAlNum(Look) do begin
+		Value := Value + UpCase(Look);
+		GetChar;
+	end;
+	SkipWhite;
 end;
 
 {--------------------------------------------------------------}
@@ -121,6 +171,7 @@ end;
 function GetNum: integer;
 var Val: integer;
 begin
+	NewLine;
 	Val := 0;
 	if not IsDigit(Look) then Expected('Integer');
 	while IsDigit(Look) do begin
@@ -128,6 +179,12 @@ begin
 		GetChar;
 	end;
 	GetNum := Val;
+end;
+
+procedure Scan;
+begin
+	GetName;
+	Token := KWCode[Lookup(Addr(KWList), Value, NKW) + 1];
 end;
 
 {--------------------------------------------------------------}
@@ -155,6 +212,7 @@ begin
 	for i := 'A' to 'Z' do
 		ST[i] := ' ';
 	GetChar;
+	Scan;
 end;
 
 procedure Undefined(n: string);
@@ -300,34 +358,31 @@ procedure Block; Forward;
 procedure DoIf;
 var L1, L2: string;
 begin
-	Match('i');
 	BoolExpression;
 	L1 := NewLabel;
 	L2 := L1;
 	BranchFalse(L1);
 	Block;
-	if Look = 'l' then begin
-		Match('l');
+	if Token = 'l' then begin
 		L2 := NewLabel;
 		Branch(L2);
 		PostLabel(L1);
 		Block;
 	end;
 	PostLabel(L2);
-	Match('e');
+	MatchString('ENDIF');
 end;
 
 procedure DoWhile;
 var L1, L2: string;
 begin
-	Match('w');
 	L1 := NewLabel;
 	L2 := NewLabel;
 	PostLabel(L1);
 	BoolExpression;
 	BranchFalse(L2);
 	Block;
-	Match('e');
+	MatchString('ENDWHILE');
 	Branch(L1);
 	PostLabel(L2);
 end;
@@ -339,8 +394,10 @@ begin
 		BoolExpression;
 		Match(')');
 		end
-	else if IsAlpha(Look) then
-		LoadVar(GetName)
+	else if IsAlpha(Look) then begin
+		GetName;
+		LoadVar(Value[1])
+		end
 	else
 		LoadConst(GetNum);
 end;
@@ -364,32 +421,34 @@ begin
 				Factor;
 			end;
 	 '-': NegFactor;
-	 else Factor;
+	else Factor;
 	end;
- end;
+end;
 
- procedure Multiply;
- begin
-	 Match('*');
-	 Factor;
-	 PopMul;
- end;
+procedure Multiply;
+begin
+	Match('*');
+	Factor;
+	PopMul;
+end;
 
- procedure Divide;
- begin
-	 Match('/');
-	 Factor;
-	 PopDiv;
- end;
+procedure Divide;
+begin
+	Match('/');
+	Factor;
+	PopDiv;
+end;
 
- procedure Term1;
- begin
-	 while IsMulop(Look) do begin
+procedure Term1;
+begin
+	NewLine;
+	while IsMulop(Look) do begin
 		 Push;
 		 case Look of
 		  '*': Multiply;
 		  '/': Divide;
 		end;
+		NewLine;
 	end;
 end;
 
@@ -421,6 +480,7 @@ end;
 
 procedure Expression;
 begin
+	NewLine;
 	FirstTerm;
 	while IsAddop(Look) do begin
 		Push;
@@ -428,13 +488,14 @@ begin
 		 '+': Add;
 		 '-': Subtract;
 		end;
+		NewLine;
 	end;
 end;
 
 procedure Assignment;
 var Name: char;
 begin
-	Name := GetName;
+	Name := Value[1];
 	Match('=');
 	BoolExpression;
 	Store(Name);
@@ -442,12 +503,14 @@ end;
 
 procedure Block;
 begin
-	while not(Look in ['e', 'l']) do begin
-		case Look of
+	Scan;
+	while not(Token in ['e', 'l']) do begin
+		case Token of
 		 'i': DoIf;
 		 'w': DoWhile;
 		else Assignment;
 		end;
+		Scan;
 	end;
 end;
 
@@ -456,6 +519,7 @@ begin
 	Match('=');
 	Expression;
 	PopCompare;
+	NewLine;
 	SetEqual;
 end;
 
@@ -510,12 +574,14 @@ end;
 
 procedure BoolTerm;
 begin
+	NewLine;
 	NotFactor;
 	while Look = '&' do begin
 		Push;
 		Match('&');
 		NotFactor;
 		PopAnd;
+		NewLine;
 	end;
 end;
 
@@ -535,6 +601,7 @@ end;
 
 procedure BoolExpression;
 begin
+	NewLine;
 	BoolTerm;
 	while IsOrop(Look) do begin
 		Push;
@@ -542,6 +609,7 @@ begin
 		 '|': BoolOr;
 		 '~': BoolXor;
 		end;
+		NewLine;
 	end;
 end;
 procedure Header;
@@ -563,10 +631,10 @@ end;
 
 procedure Main;
 begin
-	Match('b');
+	MatchString('BEGIN');
 	Prolog;
 	Block;
-	Match('e');
+	MatchString('END');
 	Epilog;
 end;
 
@@ -588,28 +656,30 @@ begin
 end;
 
 procedure Decl;
-var Name: char;
 begin
-	Match('v');
-	Alloc(GetName);
+	Alloc(Value[1]);
 	while Look = ',' do begin
-		GetChar;
-		Alloc(GetName);
+		Match(',');
+		GetName;
+		Alloc(Value[1]);
 	end;
 end;
 
 procedure TopDecls;
 begin
-	while Look <> 'b' do
-		case Look of
+	Scan;
+	while Token <> 'b' do begin
+		case Token of
 		 'v': Decl;
-		else Abort('Unrecognized Keyword ''' + Look + '''');
+		else Abort('Unrecognized Keyword ' + Value);
 		end;
+		Scan;
+	end;
 end;
 
 procedure Prog;
 begin
-	Match('p');
+	MatchString('PROGRAM');
 	Header;
 	TopDecls;
 	Main;
