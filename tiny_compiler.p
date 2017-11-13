@@ -11,6 +11,7 @@ const LF = ^J;
 { Variable Declarations }
 var Look: char; { Lookahead Character }
 	ST: array['A'..'Z'] of char;
+	LCount: integer;
 
 {--------------------------------------------------------------}
 { Read New Character From Input Stream }
@@ -149,6 +150,7 @@ end;
 procedure Init;
 var i: char;
 begin
+	LCount := 0;
 	{ init symbol table }
 	for i := 'A' to 'Z' do
 		ST[i] := ' ';
@@ -158,6 +160,14 @@ end;
 procedure Undefined(n: string);
 begin
 	Abort('Undefined Identifier ' + n);
+end;
+
+function NewLabel: string;
+var S: string;
+begin
+	Str(LCount, S);
+	NewLabel := 'L' + S;
+	Inc(LCount);
 end;
 
 procedure PostLabel(s: string);
@@ -272,7 +282,55 @@ begin
 	EmitLn('EXT D0');
 end;
 
+procedure Branch(L: string);
+begin
+	EmitLn('BRA ' + L);
+end;
+
+procedure BranchFalse(L: string);
+begin
+	EmitLn('TST D0');
+	EmitLn('BEQ ' + L);
+end;
+
 procedure BoolExpression; Forward;
+
+procedure Block; Forward;
+
+procedure DoIf;
+var L1, L2: string;
+begin
+	Match('i');
+	BoolExpression;
+	L1 := NewLabel;
+	L2 := L1;
+	BranchFalse(L1);
+	Block;
+	if Look = 'l' then begin
+		Match('l');
+		L2 := NewLabel;
+		Branch(L2);
+		PostLabel(L1);
+		Block;
+	end;
+	PostLabel(L2);
+	Match('e');
+end;
+
+procedure DoWhile;
+var L1, L2: string;
+begin
+	Match('w');
+	L1 := NewLabel;
+	L2 := NewLabel;
+	PostLabel(L1);
+	BoolExpression;
+	BranchFalse(L2);
+	Block;
+	Match('e');
+	Branch(L1);
+	PostLabel(L2);
+end;
 
 procedure Factor;
 begin
@@ -380,6 +438,17 @@ begin
 	Match('=');
 	BoolExpression;
 	Store(Name);
+end;
+
+procedure Block;
+begin
+	while not(Look in ['e', 'l']) do begin
+		case Look of
+		 'i': DoIf;
+		 'w': DoWhile;
+		else Assignment;
+		end;
+	end;
 end;
 
 procedure Equals;
@@ -490,12 +559,6 @@ procedure Epilog;
 begin
 	EmitLn('DC WARMST');
 	EmitLn('END MAIN');
-end;
-
-procedure Block;
-begin
-	while Look <> 'e' do
-		Assignment;
 end;
 
 procedure Main;
