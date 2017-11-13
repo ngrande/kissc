@@ -86,6 +86,26 @@ begin
 	IsDigit := c in ['0'..'9'];
 end;
 
+function IsMulop(c: char): boolean;
+begin
+	IsMulop := c in ['*', '/'];
+end;
+
+function IsAddop(c: char): boolean;
+begin
+	IsAddop := c in ['+', '-'];
+end;
+
+function IsOrop(c: char): boolean;
+begin
+	IsOrop := c in ['|', '~'];
+end;
+
+function IsRelop(c: char): boolean;
+begin
+	IsRelop := c in ['=', '#', '<', '>'];
+end;
+
 {--------------------------------------------------------------}
 { Get an Identifier }
 function GetName: char;
@@ -163,7 +183,7 @@ end;
 
 procedure LoadVar(Name: char);
 begin
-	if not InTable[Name] then Undefined(Name);
+	if not InTable(Name) then Undefined(Name);
 	EmitLn('MOVE ' + Name + ' (PC),D0');
 end;
 
@@ -198,11 +218,263 @@ end;
 
 procedure Store(Name: char);
 begin
-	if not InTable[Name] then Undefined(Name);
+	if not InTable(Name) then Undefined(Name);
 	EmitLn('LEA ' + Name + '(PC),A0');
 	EmitLn('MOVE D0,(A0)');
 end;
 
+procedure NotIt;
+begin
+	EmitLn('NOT D0');
+end;
+
+procedure PopAnd;
+begin
+	EmitLn('AND (SP)+,D0');
+end;
+
+procedure PopOr;
+begin
+	EmitLn('OR (SP)+,D0');
+end;
+
+procedure PopXor;
+begin
+	EmitLn('EOR (SP)+,D0');
+end;
+
+procedure PopCompare;
+begin
+	EmitLn('CMP (SP)+,D0');
+end;
+
+procedure SetEqual;
+begin
+	EmitLn('SEQ D0');
+	EmitLn('EXT D0');
+end;
+
+procedure SetNEqual;
+begin
+	EmitLn('SNE D0');
+	EmitLn('EXT D0');
+end;
+
+procedure SetGreater;
+begin
+	EmitLn('SLT D0');
+	EmitLn('EXT D0');
+end;
+
+procedure SetLess;
+begin
+	EmitLn('SGT D0');
+	EmitLn('EXT D0');
+end;
+
+procedure BoolExpression; Forward;
+
+procedure Factor;
+begin
+	if Look = '(' then begin
+		Match('(');
+		BoolExpression;
+		Match(')');
+		end
+	else if IsAlpha(Look) then
+		LoadVar(GetName)
+	else
+		LoadConst(GetNum);
+end;
+
+procedure NegFactor;
+begin
+	Match('-');
+	if IsDigit(Look) then
+		LoadConst(-GetNum)
+	else begin
+		Factor;
+		Negate;
+	end;
+end;
+
+procedure FirstFactor;
+begin
+	case Look of
+	 '+':	begin
+				Match('+');
+				Factor;
+			end;
+	 '-': NegFactor;
+	 else Factor;
+	end;
+ end;
+
+ procedure Multiply;
+ begin
+	 Match('*');
+	 Factor;
+	 PopMul;
+ end;
+
+ procedure Divide;
+ begin
+	 Match('/');
+	 Factor;
+	 PopDiv;
+ end;
+
+ procedure Term1;
+ begin
+	 while IsMulop(Look) do begin
+		 Push;
+		 case Look of
+		  '*': Multiply;
+		  '/': Divide;
+		end;
+	end;
+end;
+
+procedure Term;
+begin
+	Factor;
+	Term1;
+end;
+
+procedure FirstTerm;
+begin
+	FirstFactor;
+	Term1;
+end;
+
+procedure Add;
+begin
+	Match('+');
+	Term;
+	PopAdd;
+end;
+
+procedure Subtract;
+begin
+	Match('-');
+	Term;
+	PopSub;
+end;
+
+procedure Expression;
+begin
+	FirstTerm;
+	while IsAddop(Look) do begin
+		Push;
+		case Look of
+		 '+': Add;
+		 '-': Subtract;
+		end;
+	end;
+end;
+
+procedure Assignment;
+var Name: char;
+begin
+	Name := GetName;
+	Match('=');
+	BoolExpression;
+	Store(Name);
+end;
+
+procedure Equals;
+begin
+	Match('=');
+	Expression;
+	PopCompare;
+	SetEqual;
+end;
+
+procedure NotEquals;
+begin
+	Match('#');
+	Expression;
+	PopCompare;
+	SetNEqual;
+end;
+
+procedure Less;
+begin
+	Match('<');
+	Expression;
+	PopCompare;
+	SetLess;
+end;
+
+procedure Greater;
+begin
+	Match('>');
+	Expression;
+	PopCompare;
+	SetGreater;
+end;
+
+procedure Relation;
+begin
+	Expression;
+	if IsRelop(Look) then begin
+		Push;
+		case Look of
+		 '=': Equals;
+		 '#': NotEquals;
+		 '<': Less;
+		 '>': Greater;
+		end;
+	end;
+end;
+
+procedure NotFactor;
+begin
+	if Look = '!' then begin
+		Match('!');
+		Relation;
+		NotIt;
+		end
+	else
+		Relation;
+end;
+
+procedure BoolTerm;
+begin
+	NotFactor;
+	while Look = '&' do begin
+		Push;
+		Match('&');
+		NotFactor;
+		PopAnd;
+	end;
+end;
+
+procedure BoolOr;
+begin
+	Match('|');
+	BoolTerm;
+	PopOr;
+end;
+
+procedure BoolXor;
+begin
+	Match('~');
+	BoolTerm;
+	PopXor;
+end;
+
+procedure BoolExpression;
+begin
+	BoolTerm;
+	while IsOrop(Look) do begin
+		Push;
+		case Look of
+		 '|': BoolOr;
+		 '~': BoolXor;
+		end;
+	end;
+end;
 procedure Header;
 begin
 	{ what is needed to start the program on a SK*DOS machine }
@@ -218,11 +490,6 @@ procedure Epilog;
 begin
 	EmitLn('DC WARMST');
 	EmitLn('END MAIN');
-end;
-
-procedure Assignment;
-begin
-	GetChar;
 end;
 
 procedure Block;
